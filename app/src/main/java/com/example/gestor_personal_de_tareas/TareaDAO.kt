@@ -11,11 +11,12 @@ import kotlinx.coroutines.flow.Flow
 interface DAO{
 
     @Query("SELECT * FROM tareas ORDER BY id DESC")
-    fun obtener(): Flow<List<TareaEntity>>
+    suspend fun obtener(): List<TareaEntity>
     @Insert
-    fun insertar(tarea: TareaEntity)
+    //funciones suspend pausan la corutina sin retener el hilo a diferencia del Thread.sleep
+    suspend fun insertar(tarea: TareaEntity)
     @Update
-    fun actualizar(tarea: TareaEntity)
+    suspend fun actualizar(tarea: TareaEntity)
     @Delete
-    fun eliminar(tarea: TareaEntity)
+    suspend fun eliminar(tarea: TareaEntity)
 }
