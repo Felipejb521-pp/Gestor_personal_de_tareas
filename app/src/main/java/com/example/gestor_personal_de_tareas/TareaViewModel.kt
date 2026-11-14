@@ -7,7 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
 
-class TareaViewModel (val dao: Tarea, val preferencias : PreferenciasManager): ViewModel(){
+class TareaViewModel (val dao: TareaDAO, val preferencias : PreferenciasManager): ViewModel(){
     var listaTareas by mutableStateOf<List<TareaEntity>>(emptyList())
     var mostrarSoloPendientes by mutableStateOf(false)
 
@@ -16,17 +16,11 @@ class TareaViewModel (val dao: Tarea, val preferencias : PreferenciasManager): V
         cargarTareas()
     }
 
-    //cargar todas tareas desde Room
-    fun cargarTareas(){
-        viewModelScope.launch {
-            listaTareas = dao.
-        }
-    }
 
     // 1. Cargar todas las tareas desde Room
     fun cargarTareas() {
         viewModelScope.launch {
-            listaTareas = dao.obtenerTodasLasTareas()
+            listaTareas = dao.obtener()
         }
     }
 
@@ -71,7 +65,7 @@ class TareaViewModel (val dao: Tarea, val preferencias : PreferenciasManager): V
                 prioridad = prioridad,
                 estado = "Pendiente"
             )
-            dao.insertarTarea(nuevaTarea)
+            dao.insertar(nuevaTarea)
             cargarTareas() // Refresca la lista en pantalla
         }
     }
@@ -79,7 +73,7 @@ class TareaViewModel (val dao: Tarea, val preferencias : PreferenciasManager): V
     // 6. Editar tarea existente
     fun editarTarea(tarea: TareaEntity) {
         viewModelScope.launch {
-            dao.actualizarTarea(tarea)
+            dao.actualizar(tarea)
             cargarTareas()
         }
     }
@@ -92,7 +86,7 @@ class TareaViewModel (val dao: Tarea, val preferencias : PreferenciasManager): V
                 nuevoEstado = "Completada"
             }
             val tareaActualizada = tarea.copy(estado = nuevoEstado)
-            dao.actualizarTarea(tareaActualizada)
+            dao.actualizar(tareaActualizada)
             cargarTareas()
         }
     }
@@ -100,7 +94,7 @@ class TareaViewModel (val dao: Tarea, val preferencias : PreferenciasManager): V
     // 8. Eliminar tarea
     fun eliminarTarea(tarea: TareaEntity) {
         viewModelScope.launch {
-            dao.eliminarTarea(tarea)
+            dao.eliminar(tarea)
             cargarTareas()
         }
     }

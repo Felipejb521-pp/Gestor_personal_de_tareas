@@ -1,7 +1,7 @@
 package com.example.gestor_personal_de_tareas
 
-import androidx.room3.Entity
-import androidx.room3.PrimaryKey
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
 @Entity(tableName = "tareas")
 data class TareaEntity(

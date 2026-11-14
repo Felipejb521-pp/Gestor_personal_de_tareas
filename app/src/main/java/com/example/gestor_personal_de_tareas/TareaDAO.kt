@@ -1,14 +1,14 @@
 package com.example.gestor_personal_de_tareas
 
-import androidx.room3.Dao
-import androidx.room3.Delete
-import androidx.room3.Insert
-import androidx.room3.Query
-import androidx.room3.Update
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface DAO{
+interface TareaDAO{
 
     @Query("SELECT * FROM tareas ORDER BY id DESC")
     suspend fun obtener(): List<TareaEntity>
