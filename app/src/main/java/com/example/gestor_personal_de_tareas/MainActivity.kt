@@ -52,61 +52,96 @@ import androidx.compose.ui.unit.dp
 import com.example.gestor_personal_de_tareas.data.TareaDataBase
 import com.example.gestor_personal_de_tareas.ui.theme.Gestor_personal_de_tareasTheme
 
+// Activity principal de la aplicación
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        //Inicializar Base Datos(DataStore),Room y ViewModel
+        // Paso 1: Inicializar la base de datos Room
         val baseDatos = TareaDataBase.obtenerBaseDatos(this)
+
+        // Paso 2: Inicializar el gestor de preferencias DataStore
         val preferencias = PreferenciasManager(this)
+
+        // Paso 3: Inicializar el ViewModel que conecta la base de datos y las preferencias
         val viewModel = TareaViewModel(baseDatos.tareaDAO(), preferencias)
+
+        // Configurar la pantalla para usar todo el espacio disponible
         enableEdgeToEdge()
+
+        // Paso 4: Dibujar la interfaz de usuario con Jetpack Compose
         setContent {
             Gestor_personal_de_tareasTheme {
-                // Estados para cambiar de pantalla sin librerías externas
+
+                // Variable de estado que guarda cuál pantalla se está mostrando ("PRINCIPAL", "FORMULARIO" o "API")
                 var pantallaActual by rememberSaveable { mutableStateOf("PRINCIPAL") }
+
+                // Variable de estado para saber si estamos editando una tarea existente o creando una nueva
                 var tareaAEditar by remember { mutableStateOf<TareaEntity?>(null) }
 
+                // Contenedor principal de la pantalla
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Box(modifier = Modifier.padding(innerPadding)) {
+
+                        // Usamos una estructura IF - ELSE IF tradicional para elegir la pantalla visible:
                         if (pantallaActual == "PRINCIPAL") {
+
+                            // Muestra la lista principal de tareas
                             PantallaPrincipal(
                                 viewModel = viewModel,
-                                irAFormulario = {
-                                    tareaAEditar = it
+                                irAFormulario = { tareaSeleccionada ->
+                                    tareaAEditar = tareaSeleccionada
                                     pantallaActual = "FORMULARIO"
                                 },
-                                compartirTarea = {
-                                    // Lo conectaremos mañana (Día 4)
+                                compartirTarea = { tarea ->
+                                    // Función de compartir (se conectará en el siguiente módulo)
                                 },
                                 irAApi = {
                                     pantallaActual = "API"
                                 }
                             )
+
                         } else if (pantallaActual == "FORMULARIO") {
+
+                            // Muestra el formulario para crear o editar una tarea
                             PantallaFormulario(
                                 tareaEditar = tareaAEditar,
                                 onGuardar = { titulo, descripcion, prioridad, estado ->
+                                    // Comprobamos si es una tarea nueva o una edición usando un IF tradicional
                                     if (tareaAEditar == null) {
                                         viewModel.crearTarea(titulo, descripcion, prioridad)
                                     } else {
-                                        viewModel.editarTarea(
-                                            tareaAEditar!!.copy(
+                                        val tareaExistente = tareaAEditar
+                                        if (tareaExistente != null) {
+                                            val tareaActualizada = TareaEntity(
+                                                id = tareaExistente.id,
                                                 titulo = titulo,
                                                 descripcion = descripcion,
                                                 prioridad = prioridad,
                                                 estado = estado
                                             )
-                                        )
+                                            viewModel.editarTarea(tareaActualizada)
+                                        }
                                     }
+                                    // Volvemos a la pantalla principal tras guardar
                                     pantallaActual = "PRINCIPAL"
                                 },
                                 onCancelar = {
+                                    // Volvemos a la pantalla principal sin guardar
                                     pantallaActual = "PRINCIPAL"
                                 }
                             )
+
                         } else if (pantallaActual == "API") {
-                            // Aquí pondremos PantallaApi mañana (Día 4)
+
+                            // Muestra la pantalla informativa de Ejemplos API
+                            PantallaApi(
+                                onVolver = {
+                                    pantallaActual = "PRINCIPAL"
+                                }
+                            )
+
                         }
                     }
                 }
@@ -115,6 +150,9 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// -------------------------------------------------------------------------------------
+// PANTALLA PRINCIPAL: Muestra la cabecera, botón de nueva tarea, filtro y la lista de tareas
+// -------------------------------------------------------------------------------------
 @Composable
 fun PantallaPrincipal(
     viewModel: TareaViewModel,
@@ -122,15 +160,20 @@ fun PantallaPrincipal(
     compartirTarea: (TareaEntity) -> Unit,
     irAApi: () -> Unit
 ) {
+    // Obtenemos la lista de tareas visibles desde el ViewModel
     val tareasVisibles = viewModel.obtenerTareasVisibles()
+
+    // Variable para controlar si el diálogo de borrar tarea está abierto o cerrado
     var tareaABorrar by remember { mutableStateOf<TareaEntity?>(null) }
 
+    // Disposición vertical de todos los elementos
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // 1. Cabecera con botones de Nueva Tarea y Tareas de ejemplo
+        // Bloque 1: Cabecera con el título de la app y el botón Ejemplos API
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -138,50 +181,62 @@ fun PantallaPrincipal(
         ) {
             Text(
                 text = "Mis Tareas",
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
-            Row {
-                OutlinedButton(onClick = irAApi) {
-                    Text(text = "Ejemplos API")
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(onClick = { irAFormulario(null) }) {
-                    Icon(Icons.Default.Add, contentDescription = "Nueva")
-                    Text(text = "Nueva")
-                }
+            OutlinedButton(onClick = { irAApi() }) {
+                Text(text = "Ejemplos API")
             }
         }
 
-        // 2. Switch de DataStore: "Mostrar solo pendientes"
+        // Bloque 2: Botón destacado para crear una Nueva Tarea
+        Button(
+            onClick = { irAFormulario(null) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Nueva Tarea")
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = "Nueva Tarea")
+        }
+
+        // Bloque 3: Interruptor (Switch) para filtrar solo las tareas pendientes
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Mostrar solo pendientes")
+            Text(
+                text = "Mostrar solo pendientes",
+                style = MaterialTheme.typography.bodyMedium
+            )
             Switch(
                 checked = viewModel.mostrarSoloPendientes,
-                onCheckedChange = { viewModel.cambiarFiltroSoloPendientes(it) }
+                onCheckedChange = { nuevoEstado ->
+                    viewModel.cambiarFiltroSoloPendientes(nuevoEstado)
+                }
             )
         }
 
-        // 3. Listado de tareas o mensaje si está vacía
+        // Bloque 4: Lista de tareas o mensaje de lista vacía usando un IF tradicional
         if (tareasVisibles.isEmpty()) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
                 Text(text = "No hay tareas registradas.")
             }
         } else {
+            // Lista desplegable para mostrar las tareas
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(tareasVisibles) { tarea ->
+                    // Tarjeta individual para cada tarea
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier
@@ -189,20 +244,37 @@ fun PantallaPrincipal(
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Casilla de verificación para marcar como completada
+                            val estaCompletada = (tarea.estado == "Completada")
                             Checkbox(
-                                checked = tarea.estado == "Completada",
-                                onCheckedChange = { viewModel.cambiarCompletada(tarea, it) }
+                                checked = estaCompletada,
+                                onCheckedChange = { estaMarcada ->
+                                    viewModel.cambiarCompletada(tarea, estaMarcada)
+                                }
                             )
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            // Información de la tarea (Título y Prioridad)
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = tarea.titulo, fontWeight = FontWeight.Bold)
-                                Text(text = "Prioridad: ${tarea.prioridad} | ${tarea.estado}")
+                                Text(
+                                    text = "Prioridad: ${tarea.prioridad} | ${tarea.estado}",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
                             }
+
+                            // Botón Editar
                             IconButton(onClick = { irAFormulario(tarea) }) {
                                 Icon(Icons.Default.Edit, contentDescription = "Editar")
                             }
+
+                            // Botón Compartir
                             IconButton(onClick = { compartirTarea(tarea) }) {
                                 Icon(Icons.Default.Share, contentDescription = "Compartir")
                             }
+
+                            // Botón Eliminar
                             IconButton(onClick = { tareaABorrar = tarea }) {
                                 Icon(Icons.Default.Delete, contentDescription = "Eliminar")
                             }
@@ -213,16 +285,21 @@ fun PantallaPrincipal(
         }
     }
 
-    // 4. AlertDialog de confirmación de borrado
+    // Diálogo de confirmación para eliminar una tarea usando un IF clásico
     if (tareaABorrar != null) {
+        val tareaSeleccionada = tareaABorrar
+        val tituloTarea = if (tareaSeleccionada != null) tareaSeleccionada.titulo else ""
+
         AlertDialog(
             onDismissRequest = { tareaABorrar = null },
             title = { Text(text = "Confirmar eliminación") },
-            text = { Text(text = "¿Eliminar '${tareaABorrar?.titulo}'?") },
+            text = { Text(text = "¿Eliminar '$tituloTarea'?") },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.eliminarTarea(tareaABorrar!!)
+                        if (tareaSeleccionada != null) {
+                            viewModel.eliminarTarea(tareaSeleccionada)
+                        }
                         tareaABorrar = null
                     }
                 ) {
@@ -238,6 +315,9 @@ fun PantallaPrincipal(
     }
 }
 
+// -------------------------------------------------------------------------------------
+// PANTALLA FORMULARIO: Formulario simple para crear o editar una tarea
+// -------------------------------------------------------------------------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PantallaFormulario(
@@ -245,10 +325,17 @@ fun PantallaFormulario(
     onGuardar: (String, String, String, String) -> Unit,
     onCancelar: () -> Unit
 ) {
-    var titulo by rememberSaveable { mutableStateOf(tareaEditar?.titulo ?: "") }
-    var descripcion by rememberSaveable { mutableStateOf(tareaEditar?.descripcion ?: "") }
-    var prioridad by rememberSaveable { mutableStateOf(tareaEditar?.prioridad ?: "Media") }
-    var estado by rememberSaveable { mutableStateOf(tareaEditar?.estado ?: "Pendiente") }
+    // Definimos el valor inicial de cada campo mediante IF imperativos tradicionales
+    val tituloInicial = if (tareaEditar != null) tareaEditar.titulo else ""
+    val descripcionInicial = if (tareaEditar != null) tareaEditar.descripcion else ""
+    val prioridadInicial = if (tareaEditar != null) tareaEditar.prioridad else "Media"
+    val estadoInicial = if (tareaEditar != null) tareaEditar.estado else "Pendiente"
+
+    // Variables de estado del formulario
+    var titulo by rememberSaveable { mutableStateOf(tituloInicial) }
+    var descripcion by rememberSaveable { mutableStateOf(descripcionInicial) }
+    var prioridad by rememberSaveable { mutableStateOf(prioridadInicial) }
+    var estado by rememberSaveable { mutableStateOf(estadoInicial) }
     var mensajeError by rememberSaveable { mutableStateOf("") }
 
     var menuPrioridadAbierto by remember { mutableStateOf(false) }
@@ -260,23 +347,28 @@ fun PantallaFormulario(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Título de la pantalla (Nueva Tarea o Editar Tarea)
+        val textoTituloPantalla = if (tareaEditar == null) "Nueva Tarea" else "Editar Tarea"
         Text(
-            text = if (tareaEditar == null) "Nueva Tarea" else "Editar Tarea",
+            text = textoTituloPantalla,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
 
+        // Campo de entrada para el Título
+        val tieneError = mensajeError.isNotEmpty()
         OutlinedTextField(
             value = titulo,
-            onValueChange = {
-                titulo = it
+            onValueChange = { nuevoTexto ->
+                titulo = nuevoTexto
                 mensajeError = ""
             },
             label = { Text("Título *") },
-            isError = mensajeError.isNotEmpty(),
+            isError = tieneError,
             modifier = Modifier.fillMaxWidth()
         )
 
+        // Si hay un mensaje de error, lo mostramos con un IF tradicional
         if (mensajeError.isNotEmpty()) {
             Text(
                 text = mensajeError,
@@ -285,15 +377,17 @@ fun PantallaFormulario(
             )
         }
 
+        // Campo de entrada para la Descripción
         OutlinedTextField(
             value = descripcion,
-            onValueChange = { descripcion = it },
+            onValueChange = { nuevoTexto -> descripcion = nuevoTexto },
             label = { Text("Descripción") },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(100.dp)
         )
 
+        // Menú desplegable para seleccionar la Prioridad
         ExposedDropdownMenuBox(
             expanded = menuPrioridadAbierto,
             onExpandedChange = { menuPrioridadAbierto = !menuPrioridadAbierto }
@@ -312,6 +406,7 @@ fun PantallaFormulario(
                 expanded = menuPrioridadAbierto,
                 onDismissRequest = { menuPrioridadAbierto = false }
             ) {
+                // Recorremos la lista de opciones con un bucle FOR tradicional
                 for (opcion in opcionesPrioridad) {
                     DropdownMenuItem(
                         text = { Text(opcion) },
@@ -324,11 +419,17 @@ fun PantallaFormulario(
             }
         }
 
+        // Casilla para seleccionar si está completada o pendiente
+        val estaCompletadaFormulario = (estado == "Completada")
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
-                checked = estado == "Completada",
-                onCheckedChange = { marcada ->
-                    estado = if (marcada) "Completada" else "Pendiente"
+                checked = estaCompletadaFormulario,
+                onCheckedChange = { estaMarcada ->
+                    if (estaMarcada) {
+                        estado = "Completada"
+                    } else {
+                        estado = "Pendiente"
+                    }
                 }
             )
             Text(text = "Marcar como completada")
@@ -336,23 +437,27 @@ fun PantallaFormulario(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        // Botones Cancelar y Guardar
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(
-                onClick = onCancelar,
+                onClick = { onCancelar() },
                 modifier = Modifier.weight(1f)
             ) {
                 Text("Cancelar")
             }
+
             Button(
                 onClick = {
                     val tituloLimpio = titulo.trim()
+                    // Validación del título: debe tener 3 o más caracteres
                     if (tituloLimpio.length < 3) {
                         mensajeError = "El título debe tener al menos 3 caracteres."
                     } else {
-                        onGuardar(tituloLimpio, descripcion.trim(), prioridad, estado)
+                        val descripcionLimpia = descripcion.trim()
+                        onGuardar(tituloLimpio, descripcionLimpia, prioridad, estado)
                     }
                 },
                 modifier = Modifier.weight(1f)
@@ -363,6 +468,35 @@ fun PantallaFormulario(
     }
 }
 
+// -------------------------------------------------------------------------------------
+// PANTALLA API: Pantalla simple para mostrar el módulo de Ejemplos API
+// -------------------------------------------------------------------------------------
+@Composable
+fun PantallaApi(onVolver: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Ejemplos API",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = "Esta sección de ejemplos API estará disponible próximamente.")
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = { onVolver() }) {
+            Text("Volver a Mis Tareas")
+        }
+    }
+}
+
+// -------------------------------------------------------------------------------------
+// PREVIEW: Vista previa para Jetpack Compose en Android Studio
+// -------------------------------------------------------------------------------------
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
     Text(
