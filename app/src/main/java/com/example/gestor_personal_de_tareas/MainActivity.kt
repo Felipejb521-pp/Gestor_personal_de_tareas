@@ -1,5 +1,6 @@
 package com.example.gestor_personal_de_tareas
 
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -42,8 +43,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -51,7 +54,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.gestor_personal_de_tareas.data.TareaDataBase
 import com.example.gestor_personal_de_tareas.ui.theme.Gestor_personal_de_tareasTheme
-
+import android.content.Intent
 // Activity principal de la aplicación
 class MainActivity : ComponentActivity() {
 
@@ -95,7 +98,17 @@ class MainActivity : ComponentActivity() {
                                     pantallaActual = "FORMULARIO"
                                 },
                                 compartirTarea = { tarea ->
-                                    // Función de compartir (se conectará en el siguiente módulo)
+                                    // Paso 1: Preparamos el texto que se compartirá
+                                    val textoCompartir = "Tarea: ${tarea.titulo}\nPrioridad: ${tarea.prioridad}\nEstado: ${tarea.estado}"
+
+                                    // Paso 2: Creamos el Intent (la intención de envío) en Android
+                                    val sendIntent = Intent(Intent.ACTION_SEND)
+                                    sendIntent.type = "text/plain"
+                                    sendIntent.putExtra(Intent.EXTRA_TEXT, textoCompartir)
+
+                                    // Paso 3: Abrimos la ventana emergente para elegir la app (WhatsApp, Email, Notas, etc.)
+                                    val selectorApps = Intent.createChooser(sendIntent, "Compartir tarea")
+                                    startActivity(selectorApps)
                                 },
                                 irAApi = {
                                     pantallaActual = "API"
@@ -469,27 +482,124 @@ fun PantallaFormulario(
 }
 
 // -------------------------------------------------------------------------------------
-// PANTALLA API: Pantalla simple para mostrar el módulo de Ejemplos API
+// PANTALLA API: Carga y muestra tareas de ejemplo desde Internet usando Retrofit
 // -------------------------------------------------------------------------------------
 @Composable
 fun PantallaApi(onVolver: () -> Unit) {
+    // Lista de tareas cargadas desde la API
+    var listaApi by remember { mutableStateOf<List<TareaApiDto>>(emptyList()) }
+    var estaCargando by remember { mutableStateOf(false) }
+    var mensajeError by remember { mutableStateOf("") }
+
+    // Objeto para lanzar corrutinas asíncronas en Compose
+    val coroutineScope = rememberCoroutineScope()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Ejemplos API",
-            style = MaterialTheme.typography.headlineMedium,
+            text = "Ejemplos API (Retrofit)",
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Fila de botones principales (Volver y Cargar)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                onClick = { onVolver() },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Volver")
+            }
+
+            Button(
+                onClick = {
+                    estaCargando = true
+                    mensajeError = ""
+                    coroutineScope.launch {
+                        try {
+                            // Paso 1: Crear la interfaz del servicio Retrofit
+                            val apiService = TareaApiService.crear()
+                            // Paso 2: Petición HTTP GET a la API en Internet
+                            val resultado = apiService.obtenerTareasEjemplo()
+                            listaApi = resultado
+                        } catch (e: Exception) {
+                            mensajeError = "Error al conectar: ${e.message}"
+                        }
+                        estaCargando = false
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Cargar API")
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "Esta sección de ejemplos API estará disponible próximamente.")
-        Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = { onVolver() }) {
-            Text("Volver a Mis Tareas")
+
+        // Estructura IF - ELSE IF tradicional para gestionar el estado visual
+        if (estaCargando) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Cargando tareas desde Internet...")
+            }
+        } else if (mensajeError.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = mensajeError,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        } else if (listaApi.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Pulsa 'Cargar API' para traer 10 tareas de prueba desde Internet.")
+            }
+        } else {
+            // Muestra la lista de tareas recibidas desde la API pública
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(listaApi) { tareaDto ->
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "ID #${tareaDto.id}: ${tareaDto.title}",
+                                fontWeight = FontWeight.Bold
+                            )
+                            val textoEstado = if (tareaDto.completed) "Completada" else "Pendiente"
+                            Text(
+                                text = "Estado en servidor: $textoEstado",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

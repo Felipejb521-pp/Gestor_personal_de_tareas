@@ -6,6 +6,7 @@
     (cuando uses Retrofit para consultar las tareas de ejemplo en JSONPlaceholder)-->
     <uses-permission android:name="android.permission.INTERNET" />
 
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
