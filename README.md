@@ -1,4 +1,4 @@
-[readme_md.md](https://github.com/user-attachments/files/35236632/readme_md.md)
+
 # Gestor Personal de Tareas
 
 Aplicación Android nativa desarrollada en **Kotlin** con **Jetpack Compose** para la gestión personal de tareas diarias. Permite crear, editar, filtrar, compartir e importar tareas de ejemplo desde una API externa, manteniendo la persistencia local de los datos.
