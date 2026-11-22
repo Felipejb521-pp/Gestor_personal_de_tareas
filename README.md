@@ -60,3 +60,12 @@ app/src/main/java/com/example/gestor_personal_de_tareas/
    2. Ábrelo desde **Android Studio** (`File > Open`).
    3. Sincroniza las dependencias con **Gradle Sync**.
    4. Ejecuta la aplicación mediante **Run (`Shift + F10`)** en tu emulador o dispositivo físico.
+
+## Capturas
+<img width="375" height="817" alt="Captura de pantalla 2026-11-22 170345" src="https://github.com/user-attachments/assets/2214ffc2-3088-41f7-834e-b32e51431428" />
+
+<img width="386" height="822" alt="Captura de pantalla 2026-11-22 164512" src="https://github.com/user-attachments/assets/138f42bb-e5b1-454f-a2c3-0c20f098f8a2" />
+
+<img width="368" height="831" alt="Captura de pantalla 2026-11-22 163554" src="https://github.com/user-attachments/assets/180d49d0-6873-45d8-841f-139a14aaafcf" />
+<img width="375" height="817" alt="Captura de pantalla 2026-11-22 170445" src="https://github.com/user-attachments/assets/ef699209-9a6c-4694-bc65-8f8782594d05" />
+
